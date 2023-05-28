@@ -10,185 +10,18 @@ output: html_notebook
 ### Models
 
 ```{r}
-box::use(
-    MASS[mvrnorm],
-    purrr[map, pmap, pmap_dfr,
-          map2, map_dbl, map2_dbl]
-)
 
-# number of variables 
+
+# number of variables
 p <- 15
 n <- 50
 
-categorize_matrix <- function(Z){
-    Z[Z > qnorm(2 / 3)] <- 2
-    Z[Z > qnorm(1 / 3) & Z < qnorm(2 / 3)] <- 1
-    Z[Z < qnorm(1 / 3)] <- 0
-    return(Z)
-}
-
-generate_noise <- function(Y, ratio){
-    Y_var <- var(Y)
-    Y_noise <- rnorm(n = n,
-                     mean = 0,
-                     sd = Y_var / ratio)
-    return(Y_noise)
-}
-
-onehot_encoding <- function(X) {
-    origin_colnames <- colnames(X)
-    for (column_name in origin_colnames) {
-        for (value in 0:1) {
-            X[paste0(column_name, "_", value)] <-
-                as.numeric(X[column_name] == value)
-        }
-        
-    }
-    X <- X[, !(names(X) %in% origin_colnames)]
-    return(X)
-}
-
-columns_powers <- function(X, pow = 3){
-    origin_colnames <- colnames(X)
-    for (column_name in origin_colnames) {
-        for (power_ in 1:pow) {
-            X[paste0(column_name, "_", power_)] <-
-                X[column_name] ** power_
-        }
-        
-    }
-    X <- X[, !(names(X) %in% origin_colnames)]
-    return(X)
-}
-
-basic_continous_matrix <- function(n = 100, p = 16) {
-    Z <- rnorm(n * (p + 1))
-    dim(Z) <- c(n, (p + 1))
-    X <- (Z + Z[, (p + 1)]) / sqrt(2)
-    X <- X[, -(p + 1)] |> as.data.frame()
-    colnames(X) <- paste0("X", 1:ncol(X))
-    return(X)
-}
-
-create_model1 <- function(n = 50, p = 15) {
-    cov_matrix <- matrix(nrow = p,
-                         ncol = p,
-                         data = 1)
-    for (i in 1:p) {
-        for (j in 1:p) {
-            cov_matrix[i, j] = 0.5 ** abs(i - j)
-        }
-    }
-    
-    Z <- mvrnorm(n, rep(0, p), cov_matrix)
-    Z <- categorize_matrix(Z) |> as.data.frame()
-    colnames(Z) <- paste0("Z", 1:ncol(Z))
-    Z <- onehot_encoding(Z)
-    
-    
-    Y <- 1.8 * Z[, "Z1_1"] - 1.2 * Z[, "Z1_0"] +
-        0.5 * Z[, "Z3_0"] + Z[, "Z5_0"] + Z[, "Z5_1"]
-    Y_noise <- generate_noise(Y, 1.8)
-    Y <- Y + Y_noise
-    Z <- Z |> as.matrix()
-
-    return(list(X = Z, Y = Y, groups = rep(1:p, each = 2)))
-}
-
-create_model2 <- function(n = 100, p = 4) {
-    cov_matrix <- matrix(nrow = p,
-                         ncol = p,
-                         data = 1)
-    for (i in 1:p) {
-        for (j in 1:p) {
-            cov_matrix[i, j] = 0.5 ** abs(i - j)
-        }
-    }
-    
-    Z <- mvrnorm(n, rep(0, p), cov_matrix)
-    Z <- categorize_matrix(Z) |> as.data.frame()
-    colnames(Z) <- paste0("Z", 1:ncol(Z))
-    Z <- onehot_encoding(Z)
-    
-    Y <- 3 * Z[, "Z1_1"] + 2 * Z[, "Z1_0"] +
-        3 * Z[, "Z2_1"] + 2 * Z[, "Z2_0"] +
-        (Z[, "Z1_1"] & Z[, "Z2_1"]) +
-        1.5 * (Z[, "Z1_1"] & Z[, "Z2_0"]) + 
-        2 * (Z[, "Z1_0"] & Z[, "Z2_1"]) +
-        2.5 * (Z[, "Z1_0"] & Z[, "Z2_0"])
-
-    Y_noise <- generate_noise(Y, 3)
-    Y <- Y + Y_noise
-    Z <- Z |> as.matrix()
-
-    return(list(X = Z, Y = Y, groups = rep(1:p, each = 2)))
-}
-
-create_model3 <- function(n = 100, p = 16) {
-    
-    X <- basic_continous_matrix(n = n, p = p)
-    X <- columns_powers(X)
-    
-    Y <- X[, "X3_3"] + X[, "X3_2"] + 
-        (1/3) * X[, "X6_3"] - X[, "X6_2"] +
-        (2/3) * X[, "X6_1"]
-
-    Y <- Y + rnorm(length(Y), 0 , 2)
-    X <- X |> as.matrix()
-    
-    return(list(X = X, Y = Y, groups = rep(1:p, each = 3)))
-}
-
-create_model4 <- function(n = 100, p1 = 10, p2 = 10) {
-
-    X1 <- basic_continous_matrix(n = n, p = p1)
-    X1 <- columns_powers(X1)
-    
-    X2 <- basic_continous_matrix(n = n, p = p2)
-    X2 <- categorize_matrix(X2) |> as.data.frame()
-    colnames(X2) <- paste0("X", (1 + p2):(ncol(X2) + p2))
-    X2 <- onehot_encoding(X2)
-    
-    X <- cbind(X1, X2)
-    
-    Y <- X[, "X3_3"] + X[, "X3_2"] + X[, "X3_1"] +
-        (1/3) * X[, "X6_3"] - X[, "X6_2"] +
-        (2/3) * X[, "X6_1"] + 
-        2 * X[, "X11_0"] + X[, "X11_1"]
-
-    Y <- Y + rnorm(length(Y), 0 , 2)
-    X <- X |> as.matrix()
-    
-    groups = c(rep(1:p1, each = 3), rep(1:p2, each = 2))
-    
-    return(list(X = X, Y = Y, groups = groups))
-}
-
+source("R/models.R")
+source("R/group_lars.R")
+source("R/group_lasso.R")
 
 ```
 
-# S4 Classes
-
-```{r}
-
-setClass("group_lasso", 
-         representation(X = "matrix", 
-                        y = "numeric",
-                        betas = "numeric",
-                        lambda_max = "numeric",
-                        lambda_best = "numeric",
-                        Cp = "numeric"))
-
-setClass("group_lars", 
-         representation(X = "matrix", 
-                        y = "numeric",
-                        betas = "numeric",
-                        betas_path = "list",
-                        Cp = "numeric"))
-
-
-
-```
 
 ```{r}
 
@@ -196,306 +29,43 @@ box::use(
     pracma[gramSchmidt]
 )
 
-# this is implementation of 
-# b_{-j}=(b^'_1, ..., b^'_{j-1}, 0', b^'_{j+1}, ..., b^'_{J})
-`%-%` <- function(vector, index){
-    vector[index] <- 0
-    return(vector)
-}
-
-`%_%` <- function(object, index){
-    if (dim(object) |> is.null()){
-        out <- object * 0
-        out[index] <- object[index]
-    } else {
-        out <- object * 0
-        out[, index] <- object[, index]
-    }
-    
-    return(out)
-}
-
-norm_L <- function(vector, p){
-    K <- diag(p)
-    norm_ <- sqrt(t(vector) %*% K %*% vector)[1]
-    return(norm_)
-}
-
-df_lasso <- function(indexes, group_sizes, betas, betas_ls) {
-    dg_f <- map2_dbl(indexes,
-                     group_sizes,
-                     \(j, p)
-                     as.integer(norm_L(betas[j], p) > 0) +
-                         sqrt(sum(betas[j] ** 2)) * (p - 1) / sqrt(sum(betas_ls[j] **
-                                                                           2))) |> sum()
-    return(dg_f)
-}
-
-calculate_cp <- function(indexes, group_sizes, 
-                         betas, betas_ls, X, y, df_function) {
-
-    dg_f <- df_function(indexes, group_sizes, betas, betas_ls)
-    
-    mu <- X %*% betas
-    
-    Cp <- (sum((y - mu) ** 2) / var(y - mu)[1]) - nrow(X) + 2 * dg_f
-    return(Cp)
-}
-
-calc_group_lasso <- function(X, y, groups) {
-    n_var <- ncol(X)
-    group_sizes <- table(groups) |> as.numeric()
-    n_groups <- length(group_sizes)
-    indexes <- list()
-    for (value in unique(groups)) {
-        indexes[[length(indexes) + 1]] <- which(groups == value)
-    }
-    
-    
-    max_lambda <- purrr::map_dbl(indexes, \(j)
-                                 (norm_L(t(X[, j]) %*% y,
-                                         length(j)) / sqrt(p))[1]) |> max()
-    
-    
-    best_betas <- c()
-    Cp_min <- Inf
-    
-    ls <- lm(y ~ X)
-    betas_ls <- as.numeric(ls$coefficients)
-    betas <- list()
-    i <- 0
-    
-    for (lambda in seq(from = 0,
-                       to = max_lambda,
-                       length.out = 100)) {
-        i <- i + 1
-        betas[[i]] <- rep(0, n_var)
-        betas_prev <- rep(-1, n_var)
-        while (norm_L(betas[[i]] - betas_prev, n_var) > 0.00001) {
-            betas_prev <- betas[[i]]
-            for (q in 1:n_groups) {
-                j <- which(groups == q)
-                p <- length(j)
-                
-                S <- t(X[, j]) %*% (y - X %*% (betas[[i]] %-% j))
-                betas[[i]][j] <-
-                    max((1 - (lambda * sqrt(p)) / norm_L(S, p)), 0) * S
-            }
-        }
-        
-        Cp <- calculate_cp(indexes, group_sizes, 
-                         betas[[i]], betas_ls, X, y,
-                         df_lasso)
-        
-        if (Cp < Cp_min) {
-            best_betas <- betas[[i]]
-            best_lambda <- lambda
-            Cp_min <- Cp
-        }
-    }
-    
-    model <- new("group_lasso", 
-                      X = X, 
-                      y = y,
-                      betas = best_betas,
-                      lambda_max = max_lambda,
-                      lambda_best = best_lambda,
-                      Cp = Cp_min)
-    
-    return(model)
-}
-
-
 model4 <- create_model1(n = 100)
 X <- model4$X
-X <- gramSchmidt(X)$Q#X <- scale(X)
+X <- gramSchmidt(X)$Q # X <- scale(X)
 y <- model4$Y
 groups <- model4$groups
 gl <- calc_group_lasso(X, y, groups)
 gl@betas
-X %*% gr$beta
-sum(gl@betas != 0)/3
 ```
 
 # LARS
 
 ```{r}
 
-box::use(
-    genpwr[quad_roots]
-)
-
-find_min_alpha_lars <- function(X, r, jp, mcs, gamma_, prec = 0.001) {
-        alphas <- seq(0, 1, 0.001)
-        alpha_idxs <- purrr::map_dbl(
-            alphas,
-            \(alpha_)
-            norm_L(t(X[, jp]) %*% (r - alpha_ * X %*% gamma_), length(jp)) **
-                2 / length(jp) -
-                norm_L(t(X[, mcs]) %*% (r - alpha_ * X %*% gamma_), length(mcs)) **
-                2 / length(mcs)
-        )
-        alpha_f <- alphas[round(alpha_idxs, -log(prec, 10)) == 0][1]
-        return(alpha_f)
-}
-
-find_alpha_lars <- function(X, r, j, mcs, gamma_){
-        sq_coef <- t(gamma_) %*% t(X) %*% X[, j] %*% t(X[, j]) %*% X %*% gamma_ -
-                    t(gamma_) %*% t(X) %*% X[, mcs] %*% t(X[, mcs]) %*% X %*% gamma_ 
-        lin_coef <- t(r) %*% X[, mcs] %*% t(X[, mcs]) %*% X %*% gamma_ + 
-                    t(gamma_) %*% t(X) %*% X[, mcs] %*% t(X[, mcs]) %*% r -
-                    t(r) %*% X[, j] %*% t(X[, j]) %*% X %*% gamma_ + 
-                    t(gamma_) %*% t(X) %*% X[, j] %*% t(X[, j]) %*% r
-        ww <- t(r) %*% X[, j] %*% t(X[, j]) %*% r -
-                t(r) %*% X[, mcs] %*% t(X[, mcs]) %*% r
-        roots <- quad_roots(sq_coef, lin_coef, ww)
-        root <- roots[roots >= 0 & roots <= 1]
-        if (length(root) != 1){
-            stop("We have a problem here...")
-        }
-        return(root)
-}
-
-df_lars <- function(indexes, group_sizes, betas, betas_ls) {
-    dg_f <- map2_dbl(indexes,
-                     group_sizes,
-                     \(j, p)
-                     as.integer(norm_L(betas[j], p) > 0) +
-                         sqrt(sum(betas[j] ** 2)) * (p - 1) / sqrt(sum(betas_ls[j] **
-                                                                           2))) |> sum()
-    return(dg_f)
-}
-
-
-
-calc_group_lars <- function(X, y, groups) {
-    n <- nrow(X)
-    n_var <- ncol(X)
-    group_sizes <- table(groups) |> as.numeric()
-    n_groups <- length(group_sizes)
-    indexes <- list()
-    ls <- lm(y ~ X)
-    betas_ls <- as.numeric(ls$coefficients)
-    
-    for (value in unique(groups)) {
-        indexes[[length(indexes) + 1]] <- which(groups == value)
-    }
-    
-    r <- list()
-    betas <- list()
-    
-    best_betas <- c()
-    Cp_min <- Inf
-    
-    betas[[1]] <- rep(0, n_var)
-    r[[1]] <- y
-    k <- 1
-    
-    direction <- purrr::map2_dbl(indexes,
-                                 group_sizes,
-                                 \(j, p) norm_L(t(X[, j]) %*% r[[k]], p) / p) |> which.max()
-    
-    mcs <- indexes[direction] |> unlist()
-    indexes_rest <- indexes[-direction]
-    
-    
-    while (length(indexes_rest) > 0) {
-        gamma_mcs <- solve(t(X[, mcs]) %*% X[, mcs]) %*%
-            t(X[, mcs]) %*% r[[k]]
-        gamma_ <- betas[[k]] * 0
-        gamma_[mcs] <- gamma_mcs
-        
-        alphas <- map(indexes_rest,
-                      \(jp) find_alpha_lars(X, r[[k]], unlist(jp), mcs, gamma_))
-        
-        min_idx <- which.min(alphas)
-        alpha_ <- min(unlist(alphas))
-        mcs <- c(mcs, indexes_rest[min_idx]) |> unlist()
-        indexes_rest <- indexes_rest[-min_idx]
-        
-        k <- k + 1
-        betas[[k]] <- betas[[k - 1]] + alpha_ * gamma_
-        r[[k]] <- y - X %*% betas[[k]]
-        
-        Cp <- calculate_cp(indexes, group_sizes, 
-                 betas[[k]], betas_ls, X, y,
-                 df_lars)
-
-        if (Cp < Cp_min) {
-            best_betas <- betas[[k]]
-            Cp_min <- Cp
-        }
-    }
-    
-    model <- new("group_lars", 
-                      X = X, 
-                      y = y,
-                    betas = best_betas,
-                    betas_path = betas,
-                    Cp = Cp_min)
-    return(model)
-}
-
 model_data <- create_model2()
 X <- model_data$X
-X <- gramSchmidt(X)$Q#X <- scale(X)
+X <- gramSchmidt(X)$Q # X <- scale(X)
 y <- model_data$Y
 groups <- model_data$groups
 calc_group_lars(X, y, groups)@betas
 calc_group_lasso(X, y, groups)@betas
-gr_cv <- cv.gglasso(x=X, y=y, group=v.group, 
-            loss="ls", pred.loss="L2", 
-            intercept = F, nfolds=5)
+library(gglasso)
+gr_cv <- cv.gglasso(
+    x = X, y = y, group = groups,
+    loss = "ls", pred.loss = "L2",
+    intercept = F, nfolds = 5
+)
 
-gr <- gglasso(X, y, lambda = gr_cv$lambda.1se,
-             group = v.group, loss = "ls",
-             intercept = F)
+gr <- gglasso(X, y,
+    lambda = gr_cv$lambda.1se,
+    group = groups, loss = "ls",
+    intercept = F
+)
 
 
 as.numeric(gr$beta) |> round(5)
 
 
-```
-
-# gglasso package
-
-```{r}
-library(gglasso)
-
-N = 500 # number of observations
-p = 20  # number of variables
- 
-# random generated X
-X = matrix(rnorm(N*p), ncol = p)
-mod <- create_model1(p = 20)
-X2 <- mod$Z
-X <- gramSchmidt(mod$Z)
-X$Q %*% X$R
-X <- X$Q
-X <- mod$Z |> as.matrix()
-
-# standardization : mean = 0, std=1
-# X = scale(X)
- 
-# artificial coefficients
-beta <- c(0.15,-0.33,0.25,-0.25,0.05,
-          0,0,0,0.5,0.2,
-        -0.25, 0.12,-0.5,0,0,
-        0,0,0,0,0)
- 
-# Y variable, standardized Y
-y = X2 %*% beta + rnorm(nrow(X), sd = sd(X2 %*% beta)/200)
-y <- mod$Y
-#y = scale(y)
- 
-# group index for X variables
-v.group <- c(1,1,1,1,1,2,2,2,2,2,
-             3,3,3,3,3,4,4,4,4,4)
-v.group <- groups
-
-
-gl <- calc_group_lasso(X, y, v.group)
-gl@betas |> round(5)
 ```
 
 
@@ -504,35 +74,35 @@ gl@betas |> round(5)
 ```{r}
 
 find_min_alpha_nng <- function(Z, r, jp, mcs, gamma_) {
-        
-    alpha_ <- length(mcs) * Z[,jp] - length(jp) * Z[,mcs]
-    
-        
+    alpha_ <- length(mcs) * Z[, jp] - length(jp) * Z[, mcs]
+
+
     alphas <- seq(0, 1, 0.001)
-        alpha_idxs <- purrr::map_dbl(
-            alphas,
-            \(alpha_)
-            norm_L(t(X[, jp]) %*% (r - alpha_ * X %*% gamma_), length(jp)) **
-                2 / length(jp) -
-                norm_L(t(X[, mcs]) %*% (r - alpha_ * X %*% gamma_), length(mcs)) **
+    alpha_idxs <- purrr::map_dbl(
+        alphas,
+        \(alpha_)
+        norm_L(t(X[, jp]) %*% (r - alpha_ * X %*% gamma_), length(jp))**
+            2 / length(jp) -
+            norm_L(t(X[, mcs]) %*% (r - alpha_ * X %*% gamma_), length(mcs))**
                 2 / length(mcs)
-        )
-        alpha_f <- alphas[round(alpha_idxs, -log(prec, 10)) == 0][1]
-        return(alpha_f)
+    )
+    alpha_f <- alphas[round(alpha_idxs, -log(prec, 10)) == 0][1]
+    return(alpha_f)
 }
 
 df_nng <- function(indexes, group_sizes, betas, betas_ls) {
-    dg_f <- map2_dbl(indexes,
-                     group_sizes,
-                     \(j, p)
-                     as.integer(norm_L(betas[j], p) > 0) +
-                         sqrt(sum(betas[j] ** 2)) * (p - 1) / sqrt(sum(betas_ls[j] **
-                                                                           2))) |> sum()
+    dg_f <- map2_dbl(
+        indexes,
+        group_sizes,
+        \(j, p)
+        as.integer(norm_L(betas[j], p) > 0) +
+            sqrt(sum(betas[j]**2)) * (p - 1) / sqrt(sum(betas_ls[j]**
+                2))
+    ) |> sum()
     return(dg_f)
 }
 
 calc_group_nng <- function(X, y, groups) {
-    
     n <- nrow(X)
     n_var <- ncol(X)
     group_sizes <- table(groups) |> as.numeric()
@@ -541,29 +111,31 @@ calc_group_nng <- function(X, y, groups) {
     ls <- lm(y ~ X)
     betas_ls <- as.numeric(ls$coefficients)
     Z <- sweep(X, 2, betas_ls[-1], "*")
-    
+
     for (value in unique(groups)) {
         indexes[[length(indexes) + 1]] <- which(groups == value)
     }
-    
+
     r <- list()
     betas <- list()
-    
+
     best_betas <- c()
     Cp_min <- Inf
-    
+
     betas[[1]] <- rep(0, n_var)
     r[[1]] <- y
     k <- 1
-    
-    direction <- purrr::map2_dbl(indexes,
-                                 group_sizes,
-                                 \(j, p) norm_L(t(Z[, j]) %*% r[[k]], p)) |> which.max()
-    
+
+    direction <- purrr::map2_dbl(
+        indexes,
+        group_sizes,
+        \(j, p) norm_L(t(Z[, j]) %*% r[[k]], p)
+    ) |> which.max()
+
     # mcs is current set of directions
     mcs <- indexes[direction] |> unlist()
     indexes_rest <- indexes[-direction]
-    
+
     ps <- map(indexes_rest, length)
     p_jp <- length(mcs)
     map2(indexes_rest, ps, \(j, p_j) {
@@ -572,51 +144,56 @@ calc_group_nng <- function(X, y, groups) {
         return(alpha_)
     })
     ds <- rep(0, n_var)
-    
+
     while (length(indexes_rest) > 0) {
         gamma_mcs <- solve(t(Z[, mcs]) %*% Z[, mcs]) %*%
             t(Z[, mcs]) %*% r[[k]]
         gamma_ <- betas[[k]] * 0
         gamma_[mcs] <- gamma_mcs
-        
-        betas <- -ds/gamma_
-        
-        
-        alphas <- map(indexes_rest,
-                      \(jp) find_min_alpha_lars(Z, r[[k]], unlist(jp), mcs, gamma_, prec = 0.001))
-        
+
+        betas <- -ds / gamma_
+
+
+        alphas <- map(
+            indexes_rest,
+            \(jp) find_min_alpha_lars(Z, r[[k]], unlist(jp), mcs, gamma_, prec = 0.001)
+        )
+
         min_idx <- which.min(alphas)
         alpha_ <- min(unlist(alphas))
         mcs <- c(mcs, indexes_rest[min_idx]) |> unlist()
         indexes_rest <- indexes_rest[-min_idx]
-        
+
         k <- k + 1
         betas[[k]] <- betas[[k - 1]] + alpha_ * gamma_
         r[[k]] <- y - Z %*% betas[[k]]
-        
-        Cp <- calculate_cp(indexes, group_sizes, 
-                 betas[[k]], betas_ls, Z, y,
-                 df_lars)
+
+        Cp <- calculate_cp(
+            indexes, group_sizes,
+            betas[[k]], betas_ls, Z, y,
+            df_lars
+        )
         browser()
-        
+
         if (Cp < Cp_min) {
             best_betas <- betas[[k]]
             Cp_min <- Cp
         }
     }
-    
-    model <- new("group_lars", 
-                      X = X, 
-                      y = y,
-                    betas = best_betas,
-                    betas_path = betas,
-                    Cp = Cp_min)
+
+    model <- new("group_lars",
+        X = X,
+        y = y,
+        betas = best_betas,
+        betas_path = betas,
+        Cp = Cp_min
+    )
     return(model)
 }
 
 model_data <- create_model1()
 X <- model_data$X
-X <- gramSchmidt(X)$Q#X <- scale(X)
+X <- gramSchmidt(X)$Q # X <- scale(X)
 y <- model_data$Y
 groups <- model_data$groups
 gl <- calc_group_lars(X, y, groups)
