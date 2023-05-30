@@ -2,7 +2,9 @@ source("R/models.R")
 source("R/helpers.R")
 source("R/classes.R")
 
-calc_group_lasso <- function(X, y, groups) {
+calc_group_lasso <- function(
+    X, y, groups,
+    cp_indicator = TRUE, true_betas = NULL) {
     n_var <- ncol(X)
     group_sizes <- table(groups) |> as.numeric()
     n_groups <- length(group_sizes)
@@ -19,8 +21,10 @@ calc_group_lasso <- function(X, y, groups) {
     ) / sqrt(p))[1]) |> max()
 
 
-    best_betas <- c()
+    best_betas_cp <- c()
+    best_betas_me <- c()
     Cp_min <- Inf
+    me_min <- Inf
 
     ls <- lm(y ~ X)
     betas_ls <- as.numeric(ls$coefficients)
@@ -35,6 +39,7 @@ calc_group_lasso <- function(X, y, groups) {
         i <- i + 1
         betas[[i]] <- rep(0, n_var)
         betas_prev <- rep(-1, n_var)
+        
         while (norm_L(betas[[i]] - betas_prev, n_var) > 0.00001) {
             betas_prev <- betas[[i]]
             for (q in 1:n_groups) {
@@ -54,20 +59,49 @@ calc_group_lasso <- function(X, y, groups) {
         )
 
         if (Cp < Cp_min) {
-            best_betas <- betas[[i]]
-            best_lambda <- lambda
+            best_betas_cp <- betas[[i]]
+            best_lambda_cp <- lambda
             Cp_min <- Cp
+        }
+
+        if (!is.null(true_betas)) {
+            me <- calculate_me(
+                X, betas[[i]], true_betas
+            )
+
+            if (me < me_min) {
+                best_betas_me <- betas[[i]]
+                best_lambda_me <- lambda
+                me_min <- me
+            }
         }
     }
 
-    model <- new("group_lasso",
-        X = X,
-        y = y,
-        betas = best_betas,
-        lambda_max = max_lambda,
-        lambda_best = best_lambda,
-        Cp = Cp_min
-    )
+    if (cp_indicator) {
+        model <- new("group_lasso",
+            X = X,
+            y = y,
+            betas = best_betas_cp,
+            true_betas = true_betas,
+            lambda_max = max_lambda,
+            lambda_best = best_lambda_cp,
+            Cp = Cp_min,
+            model_error = me_min
+        )
+    } else {
+        model <- new("group_lasso",
+            X = X,
+            y = y,
+            betas = best_betas_cp,
+            true_betas = true_betas,
+            lambda_max = max_lambda,
+            lambda_best = best_lambda_cp,
+            Cp = Cp_min,
+            model_error = me_min
+        )
+    }
+
+
 
     return(model)
 }

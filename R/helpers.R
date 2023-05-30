@@ -40,3 +40,8 @@ calculate_cp <- function(indexes, group_sizes,
     Cp <- (sum((y - mu)**2) / var(y - mu)[1]) - nrow(X) + 2 * dg_f
     return(Cp)
 }
+
+calculate_me <- function(X, beta_hat, beta) {
+    me <- t((beta_hat - beta)) %*% t(X) %*% X %*% (beta_hat - beta)
+    return(me[[1]])
+}

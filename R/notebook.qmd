@@ -19,6 +19,8 @@ n <- 50
 source("R/models.R")
 source("R/group_lars.R")
 source("R/group_lasso.R")
+source("R/testing.R")
+
 
 ```
 
@@ -31,11 +33,11 @@ box::use(
 
 model4 <- create_model1(n = 100)
 X <- model4$X
-X <- gramSchmidt(X)$Q # X <- scale(X)
 y <- model4$Y
 groups <- model4$groups
 gl <- calc_group_lasso(X, y, groups)
 gl@betas
+
 ```
 
 # LARS
@@ -44,8 +46,10 @@ gl@betas
 
 model_data <- create_model2()
 X <- model_data$X
-X <- gramSchmidt(X)$Q # X <- scale(X)
+X <- gramSchmidt(X)$Q # X <- scale(X)\
+colnames(X) <- colnames(model_data$X)
 y <- model_data$Y
+true_betas <- model_data$betas
 groups <- model_data$groups
 calc_group_lars(X, y, groups)@betas
 calc_group_lasso(X, y, groups)@betas
@@ -65,6 +69,13 @@ gr <- gglasso(X, y,
 
 as.numeric(gr$beta) |> round(5)
 
+
+
+
+
+
+tester(test_ls, n = 10, X, y, true_betas)
+tester(test_step, n = 10, X, y, true_betas)
 
 ```
 
