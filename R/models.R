@@ -3,7 +3,8 @@ box::use(
     purrr[
         map, pmap, pmap_dfr,
         map2, map_dbl, map2_dbl
-    ]
+    ],
+    pracma[gramSchmidt]
 )
 
 categorize_matrix <- function(Z) {
@@ -56,6 +57,13 @@ basic_continous_matrix <- function(n = 100, p = 16) {
     return(X)
 }
 
+ortogonalize <- function(X, y) {
+    full_orto <- gramSchmidt(cbind(X, y))$Q
+    X <- full_orto[, -ncol(full_orto)]
+    y <- full_orto[, ncol(full_orto)]
+    return(list(X = X, y = y))
+}
+
 create_model1 <- function(n = 50, p = 15) {
     cov_matrix <- matrix(
         nrow = p,
@@ -73,6 +81,10 @@ create_model1 <- function(n = 50, p = 15) {
     colnames(Z) <- paste0("Z", 1:ncol(Z))
     Z <- onehot_encoding(Z)
 
+    colnames_ <- colnames(Z)
+    gs <- gramSchmidt(as.matrix(Z))
+    Z <- gs$Q
+    colnames(Z) <- colnames_
 
     Y <- 1.8 * Z[, "Z1_1"] - 1.2 * Z[, "Z1_0"] +
         0.5 * Z[, "Z3_0"] + Z[, "Z5_0"] + Z[, "Z5_1"]
@@ -80,7 +92,15 @@ create_model1 <- function(n = 50, p = 15) {
     Y <- Y + Y_noise
     Z <- Z |> as.matrix()
 
-    return(list(X = Z, Y = Y, groups = rep(1:p, each = 2)))
+
+    betas <- c(-1.2, 1.8, 0, 0, 0.5, 1, 0, 0, 1, 1)
+    betas <- c(betas, rep(0, 2 * p - length(betas)))
+
+    return(list(
+        X = Z, Y = Y,
+        groups = rep(1:p, each = 2),
+        betas = betas
+    ))
 }
 
 create_model2 <- function(n = 100, p = 4) {
@@ -100,6 +120,11 @@ create_model2 <- function(n = 100, p = 4) {
     colnames(Z) <- paste0("Z", 1:ncol(Z))
     Z <- onehot_encoding(Z)
 
+    colnames_ <- colnames(Z)
+    gs <- gramSchmidt(as.matrix(Z))
+    Z <- gs$Q
+    colnames(Z) <- colnames_
+
     Y <- 3 * Z[, "Z1_1"] + 2 * Z[, "Z1_0"] +
         3 * Z[, "Z2_1"] + 2 * Z[, "Z2_0"] +
         (Z[, "Z1_1"] & Z[, "Z2_1"]) +
@@ -111,21 +136,49 @@ create_model2 <- function(n = 100, p = 4) {
     Y <- Y + Y_noise
     Z <- Z |> as.matrix()
 
-    return(list(X = Z, Y = Y, groups = rep(1:p, each = 2)))
+    betas <- c(2, 3, 2, 3)
+    betas <- c(betas, rep(0, 2 * p - length(betas)))
+
+    return(list(
+        X = Z, Y = Y,
+        groups = rep(1:p, each = 2),
+        betas = betas
+    ))
 }
 
 create_model3 <- function(n = 100, p = 16) {
     X <- basic_continous_matrix(n = n, p = p)
     X <- columns_powers(X)
 
+    colnames_ <- colnames(X)
+    gs <- gramSchmidt(as.matrix(X))
+    X <- gs$Q
+    colnames(X) <- colnames_
+
     Y <- X[, "X3_3"] + X[, "X3_2"] +
         (1 / 3) * X[, "X6_3"] - X[, "X6_2"] +
         (2 / 3) * X[, "X6_1"]
 
-    Y <- Y + rnorm(length(Y), 0, 2)
+    Y <- Y + generate_noise(Y, 5)
     X <- X |> as.matrix()
 
-    return(list(X = X, Y = Y, groups = rep(1:p, each = 3)))
+    betas <- c(
+        0, 0, 0,
+        0, 0, 0,
+        1, 1, 1,
+        0, 0, 0,
+        0, 0, 0,
+        2 / 3, -1, 1 / 3
+    )
+    betas <- c(betas, rep(0, 3 * p - length(betas)))
+
+    return(
+        list(
+            X = X, Y = Y,
+            groups = rep(1:p, each = 3),
+            betas = betas
+        )
+    )
 }
 
 create_model4 <- function(n = 100, p1 = 10, p2 = 10) {
@@ -139,15 +192,35 @@ create_model4 <- function(n = 100, p1 = 10, p2 = 10) {
 
     X <- cbind(X1, X2)
 
+    colnames_ <- colnames(X)
+    gs <- gramSchmidt(as.matrix(X))
+    X <- gs$Q
+    colnames(X) <- colnames_
+
     Y <- X[, "X3_3"] + X[, "X3_2"] + X[, "X3_1"] +
         (1 / 3) * X[, "X6_3"] - X[, "X6_2"] +
         (2 / 3) * X[, "X6_1"] +
         2 * X[, "X11_0"] + X[, "X11_1"]
 
-    Y <- Y + rnorm(length(Y), 0, 2)
+    Y <- Y + generate_noise(Y, 1)
     X <- X |> as.matrix()
 
     groups <- c(rep(1:p1, each = 3), rep(1:p2, each = 2))
 
-    return(list(X = X, Y = Y, groups = groups))
+    betas <- c(
+        0, 0, 0,
+        0, 0, 0,
+        1, 1, 1,
+        0, 0, 0,
+        0, 0, 0,
+        2 / 3, -1, 1 / 3,
+        0, 0, 0,
+        0, 0, 0,
+        0, 0, 0,
+        0, 0, 0,
+        2, 1
+    )
+    betas <- c(betas, rep(0, 3 * p1 + 2 * p2 - length(betas)))
+
+    return(list(X = X, Y = Y, groups = groups, betas = betas))
 }

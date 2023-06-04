@@ -1,10 +1,6 @@
-source("R/models.R")
-source("R/helpers.R")
-source("R/classes.R")
-
-box::use(
-    genpwr[quad_roots]
-)
+source("models.R")
+source("helpers.R")
+source("classes.R")
 
 find_alpha_lars <- function(X, r, j, mcs, gamma_) {
     sq_coef <- t(gamma_) %*% t(X) %*% X[, j] %*% t(X[, j]) %*% X %*% gamma_ -
@@ -18,7 +14,7 @@ find_alpha_lars <- function(X, r, j, mcs, gamma_) {
     roots <- quad_roots(sq_coef, lin_coef, ww)
     root <- roots[roots >= 0 & roots <= 1]
     if (length(root) != 1) {
-        stop("We have a problem here...")
+        return(1)
     }
     return(root)
 }
@@ -37,13 +33,14 @@ df_lars <- function(indexes, group_sizes, betas, betas_ls) {
 
 
 
-calc_group_lars <- function(X, y, groups) {
+calc_group_lars <- function(X, y, groups,
+                            result_indicator = "cp", true_betas = NULL) {
     n <- nrow(X)
     n_var <- ncol(X)
     group_sizes <- table(groups) |> as.numeric()
     n_groups <- length(group_sizes)
     indexes <- list()
-    ls <- lm(y ~ X)
+    ls <- lm(y ~ X+0)
     betas_ls <- as.numeric(ls$coefficients)
 
     for (value in unique(groups)) {
@@ -54,7 +51,11 @@ calc_group_lars <- function(X, y, groups) {
     betas <- list()
 
     best_betas <- c()
+    best_betas_me <- c()
     Cp_min <- Inf
+    me_min <- Inf
+    cp_path <- list()
+    me_path <- list()
 
     betas[[1]] <- rep(0, n_var)
     r[[1]] <- y
@@ -90,24 +91,64 @@ calc_group_lars <- function(X, y, groups) {
         betas[[k]] <- betas[[k - 1]] + alpha_ * gamma_
         r[[k]] <- y - X %*% betas[[k]]
 
-        Cp <- calculate_cp(
+        cp_path[[k]] <- calculate_cp(
             indexes, group_sizes,
             betas[[k]], betas_ls, X, y,
             df_lars
         )
 
-        if (Cp < Cp_min) {
-            best_betas <- betas[[k]]
-            Cp_min <- Cp
+        if (cp_path[[k]] < Cp_min) {
+            best_betas_cp <- betas[[k]]
+            Cp_min <- cp_path[[k]]
         }
+        
+        if (!is.null(true_betas)) {
+            me_path[[k]] <- calculate_me(
+                X, betas[[k]], true_betas
+            )
+            
+            if (me_path[[k]] < me_min) {
+                best_betas_me <- betas[[k]]
+                me_min <- me_path[[k]]
+            }
+        }
+        
     }
 
-    model <- new("group_lars",
-        X = X,
-        y = y,
-        betas = best_betas,
-        betas_path = betas,
-        Cp = Cp_min
-    )
+    if (result_indicator == "cp") {
+        model <- new("group_lars",
+                     X = X,
+                     y = y,
+                     betas = best_betas_cp,
+                     betas_path = betas,
+                     true_betas = true_betas,
+                     Cp = Cp_min,
+                     Cp_path = cp_path,
+                     model_error = me_min
+        )
+    } else if (result_indicator == "me"){
+        model <- new("group_lars",
+                     X = X,
+                     y = y,
+                     betas = best_betas_me,
+                     betas_path = betas,
+                     true_betas = true_betas,
+                     Cp = Cp_min,
+                     Cp_path = cp_path,
+                     model_error = me_min
+        )
+    } else{
+        stop("Wrong result_indicator value!")
+    }
     return(model)
+}
+
+
+quad_roots <- function(a, b, c) {
+    return(c(((
+        -b - sqrt(b ^ 2 - 4 * a * c)
+    ) / (2 * a)), ((
+        -b + sqrt(b ^ 2 -
+                      4 * a * c)
+    ) / (2 * a))))
 }
