@@ -47,7 +47,6 @@ calc_group_lasso <- function(
         i <- i + 1
         betas[[i]] <- rep(0, n_var)
         betas_prev <- rep(-1, n_var)
-
         while (norm_L(betas[[i]] - betas_prev, n_var) > 0.00001) {
             betas_prev <- betas[[i]]
             for (q in 1:n_groups) {
@@ -91,6 +90,18 @@ calc_group_lasso <- function(
                 best_betas_me <- betas[[i]]
                 best_lambda_me <- lambda
                 me_min <- me_path[[i]]
+            }
+        }
+
+        if (!is.null(true_betas)) {
+            me <- calculate_me(
+                X, betas[[i]], true_betas
+            )
+
+            if (me < me_min) {
+                best_betas_me <- betas[[i]]
+                best_lambda_me <- lambda
+                me_min <- me
             }
         }
     }
