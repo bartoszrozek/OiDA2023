@@ -1,3 +1,0 @@
-export("basic_continous_matrix", "calculate_cp", "calculate_me", "categorize_matrix", "columns_powers", "create_model1",
-       "create_model2", "create_model3", "create_model4", "generate_noise", "norm_L", "onehot_encoding", "ortogonalize",
-       "x")
