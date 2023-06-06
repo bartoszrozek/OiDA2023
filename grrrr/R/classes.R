@@ -149,7 +149,9 @@ setClass(
 #'
 setMethod("+", signature(e1 = "test_container", e2 = "test_results"), function(e1, e2) {
     
-    tests = append(e1@tests, e2)
+    tests <- append(e1@tests, e2)
+    e1@tests <- tests
+    return(e1)
     
 })
 
