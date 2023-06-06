@@ -20,6 +20,28 @@ calc_group_lasso <- function(
     result_indicator = "cp",
     true_betas = NULL) {
     
+    if (!is.matrix(X)) {
+        stop("X should be a matrix.")
+    }
+    
+    if (!is.numeric(y) && is.null(dim(y))) {
+        stop("y should be a numeric array.")
+    }
+    
+    if (nrow(X) != length(y)) {
+        stop("Dimensions of X and y does not match.")
+    }
+    
+    if (!result_indicator %in% c("cp", "me")) {
+        stop("result_indicator should be one of c('cp', 'me').")
+    }
+    if (is.null(true_betas) && result_indicator == "me") {
+        stop("To use me as result_indicator use should supply true_betas.")
+    }
+    if (length(groups) != ncol(X)) {
+        stop("groups should have the same length as number of X columns")
+    }
+    
     n_var <- ncol(X)
     group_sizes <- table(groups) |> as.numeric()
     n_groups <- length(group_sizes)
