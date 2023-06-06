@@ -1,0 +1,227 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Optimisation in data analysis
+
+## Artifical test sets
+
+### Models
+
+```{r}
+
+source("classes.R")
+source("helpers.R")
+source("models.R")
+source("group_lars.R")
+source("group_lasso.R")
+source("testing.R")
+
+
+```
+
+
+# LARS
+
+```{r}
+
+model_data <- create_model1()
+X <- model_data$X
+y <- model_data$Y
+true_betas <- model_data$betas
+groups <- model_data$groups
+calc_group_lars(X, y, groups)@betas
+true_betas
+lars <- calc_group_lars(X, y, groups)
+lars@betas_path
+lars@Cp_path
+betas <- calc_group_lasso(X, y, groups)@betas
+betas
+
+library(gglasso)
+gr_cv <- cv.gglasso(
+    x = X, y = y, group = groups,
+    loss = "ls", pred.loss = "L2",
+    intercept = F, nfolds = 5
+)
+
+gr <- gglasso(X, y,
+    lambda = gr_cv$lambda.1se,
+    group = groups, loss = "ls",
+    intercept = F
+)
+
+
+as.numeric(gr$beta) |> round(5)
+calculate_me(X, gr$beta, true_betas)
+calculate_me(X, lars@betas_path[[9]], true_betas)
+r2(X %*% lars@betas, y)
+
+ols_name <- "OLS"
+step_name <- "Step regression"
+lars_gr_cp_name <- "Lars group Cp"
+lars_gr_me_name <- "Lars group ME"
+lasso_ext_name <- "Lasso group external"
+lasso_gr_me_name <- "Lasso group ME"
+lasso_gr_cp_name <- "Lasso group Cp"
+lars_cp_name <- "Lars Cp"
+lars_me_name <- "Lars ME"
+
+create_model <- create_model1
+
+container <- new(
+    "test_container"
+)
+container <- container + calculate_test(ols_name, test_ls, n = 10, create_model)
+container <- container + calculate_test(step_name, test_step, n = 10, create_model)
+container <- container + calculate_test(lars_gr_cp_name, test_lars_group, n = 10, create_model, result_indicator = "cp")
+container <- container + calculate_test(lars_gr_me_name, test_lars_group, n = 10, create_model, result_indicator = "me")
+container <- container + calculate_test(lasso_ext_name, test_lasso_group_library, n = 10, create_model)
+container <- container + calculate_test(lasso_gr_me_name, test_lasso_group, n = 10, create_model, result_indicator = "me")
+container <- container + calculate_test(lasso_gr_cp_name, test_lasso_group, n = 10, create_model, result_indicator = "cp")
+container <- container + calculate_test(lars_cp_name, test_lars, n = 10, create_model, result_indicator = "cp")
+container <- container + calculate_test(lars_me_name, test_lars, n = 10, create_model, result_indicator = "me")
+
+create_table(container)
+create_boxplot(container, "model_error")
+create_boxplot(container, "n_factors")
+create_boxplot(container, "cpu_time")
+
+tests_rows <- c(lars_gr_cp_name, lasso_gr_cp_name)
+tests_cols <- c(lars_cp_name, step_name)
+
+perform_ttest(container, tests_rows, tests_cols)
+
+```
+
+# Non Negative Garrotte
+
+```{r}
+
+find_min_alpha_nng <- function(Z, r, jp, mcs, gamma_) {
+    alpha_ <- length(mcs) * Z[, jp] - length(jp) * Z[, mcs]
+
+
+    alphas <- seq(0, 1, 0.001)
+    alpha_idxs <- purrr::map_dbl(
+        alphas,
+        \(alpha_)
+        norm_L(t(X[, jp]) %*% (r - alpha_ * X %*% gamma_), length(jp))**
+            2 / length(jp) -
+            norm_L(t(X[, mcs]) %*% (r - alpha_ * X %*% gamma_), length(mcs))**
+                2 / length(mcs)
+    )
+    alpha_f <- alphas[round(alpha_idxs, -log(prec, 10)) == 0][1]
+    return(alpha_f)
+}
+
+df_nng <- function(indexes, group_sizes, betas, betas_ls) {
+    dg_f <- map2_dbl(
+        indexes,
+        group_sizes,
+        \(j, p)
+        as.integer(norm_L(betas[j], p) > 0) +
+            sqrt(sum(betas[j]**2)) * (p - 1) / sqrt(sum(betas_ls[j]**
+                2))
+    ) |> sum()
+    return(dg_f)
+}
+
+calc_group_nng <- function(X, y, groups) {
+    n <- nrow(X)
+    n_var <- ncol(X)
+    group_sizes <- table(groups) |> as.numeric()
+    n_groups <- length(group_sizes)
+    indexes <- list()
+    ls <- lm(y ~ X)
+    betas_ls <- as.numeric(ls$coefficients)
+    Z <- sweep(X, 2, betas_ls[-1], "*")
+
+    for (value in unique(groups)) {
+        indexes[[length(indexes) + 1]] <- which(groups == value)
+    }
+
+    r <- list()
+    betas <- list()
+
+    best_betas <- c()
+    Cp_min <- Inf
+
+    betas[[1]] <- rep(0, n_var)
+    r[[1]] <- y
+    k <- 1
+
+    direction <- purrr::map2_dbl(
+        indexes,
+        group_sizes,
+        \(j, p) norm_L(t(Z[, j]) %*% r[[k]], p)
+    ) |> which.max()
+
+    # mcs is current set of directions
+    mcs <- indexes[direction] |> unlist()
+    indexes_rest <- indexes[-direction]
+
+    ps <- map(indexes_rest, length)
+    p_jp <- length(mcs)
+    map2(indexes_rest, ps, \(j, p_j) {
+        Z_diff <- t(p_jp * Z %_% j - p_j * Z %_% mcs)
+        alpha_ <- Z_diff %*% solve(Z_diff %*% Z * gamma_)
+        return(alpha_)
+    })
+    ds <- rep(0, n_var)
+
+    while (length(indexes_rest) > 0) {
+        gamma_mcs <- solve(t(Z[, mcs]) %*% Z[, mcs]) %*%
+            t(Z[, mcs]) %*% r[[k]]
+        gamma_ <- betas[[k]] * 0
+        gamma_[mcs] <- gamma_mcs
+
+        betas <- -ds / gamma_
+
+
+        alphas <- map(
+            indexes_rest,
+            \(jp) find_min_alpha_lars(Z, r[[k]], unlist(jp), mcs, gamma_, prec = 0.001)
+        )
+
+        min_idx <- which.min(alphas)
+        alpha_ <- min(unlist(alphas))
+        mcs <- c(mcs, indexes_rest[min_idx]) |> unlist()
+        indexes_rest <- indexes_rest[-min_idx]
+
+        k <- k + 1
+        betas[[k]] <- betas[[k - 1]] + alpha_ * gamma_
+        r[[k]] <- y - Z %*% betas[[k]]
+
+        Cp <- calculate_cp(
+            indexes, group_sizes,
+            betas[[k]], betas_ls, Z, y,
+            df_lars
+        )
+
+        if (Cp < Cp_min) {
+            best_betas <- betas[[k]]
+            Cp_min <- Cp
+        }
+    }
+
+    model <- new("group_lars",
+        X = X,
+        y = y,
+        betas = best_betas,
+        betas_path = betas,
+        Cp = Cp_min
+    )
+    return(model)
+}
+
+model_data <- create_model1()
+X <- model_data$X
+X <- gramSchmidt(X)$Q # X <- scale(X)
+y <- model_data$Y
+groups <- model_data$groups
+gl <- calc_group_lars(X, y, groups)
+gl@betas
+
+```
