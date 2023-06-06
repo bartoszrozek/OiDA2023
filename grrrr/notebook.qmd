@@ -56,7 +56,6 @@ gr <- gglasso(X, y,
 as.numeric(gr$beta) |> round(5)
 calculate_me(X, gr$beta, true_betas)
 calculate_me(X, lars@betas_path[[9]], true_betas)
-r2(X %*% lars@betas, y)
 
 ols_name <- "OLS"
 step_name <- "Step regression"
