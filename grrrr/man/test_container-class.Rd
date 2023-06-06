@@ -13,6 +13,6 @@ Object that stores instances of tests_results
 \section{Slots}{
 
 \describe{
-\item{\code{tests}}{list.}
+\item{\code{tests}}{list. List of tests_results instances}
 }}
 

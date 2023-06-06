@@ -1,12 +1,21 @@
 source("R/helpers.R")
-source("R/models.R")
-source("R/group_lars.R")
-source("R/group_lasso.R")
+# source("R/models.R")
 library(gglasso)
 
 library(MASS)
 
 
+#' Function used to test specific method
+#'
+#' @param name string name which will be visible in the results
+#' @param test_function function with (X, y, true_betas, groups) as input and returning 
+#' test_result object
+#' @param n how many times the test will be run
+#' @param create_model function that returns data set (X, y, groups)
+#' @param ... additional arguments for test_function
+#'
+#' @return test_results object
+#' @export
 calculate_test <- function(name, test_function, n, create_model, ...) {
     model_error <- c()
     n_factors <- c()
@@ -47,6 +56,15 @@ calculate_test <- function(name, test_function, n, create_model, ...) {
     return(agg_results)
 }
 
+#' Function that test OLS method
+#'
+#' @param X design matrix
+#' @param y target variable
+#' @param true_betas beta coefficients used in Y calculation
+#' @param groups added only to keep function's shape
+#'
+#' @return instance of test_result class
+#' @export
 test_ls <- function(X, y, true_betas, groups) {
     start_time <- Sys.time()
     ls_model <- lm(y ~ X + 0)
@@ -63,6 +81,15 @@ test_ls <- function(X, y, true_betas, groups) {
     return(model)
 }
 
+#' Function that test stepwise regression method
+#'
+#' @param X design matrix
+#' @param y target variable
+#' @param true_betas beta coefficients used in Y calculation
+#' @param groups added only to keep function's shape
+#'
+#' @return instance of test_result class
+#' @export
 test_step <- function(X, y, true_betas, groups) {
     start_time <- Sys.time()
     ls_model <- lm(y ~ X + 0)
@@ -86,6 +113,16 @@ test_step <- function(X, y, true_betas, groups) {
     return(model)
 }
 
+#' Function that test group lars method
+#'
+#' @param X design matrix
+#' @param y target variable
+#' @param true_betas beta coefficients used in Y calculation
+#' @param groups list of integers with a length equals to number of columns in X.
+#' Indicates to which group given variable belongs to
+#'
+#' @return instance of test_result class
+#' @export
 test_lars_group <- function(X, y, true_betas, groups, ...) {
     start_time <- Sys.time()
     lars_model <- calc_group_lars(X, y, groups,true_betas = true_betas, ...)
@@ -104,6 +141,16 @@ test_lars_group <- function(X, y, true_betas, groups, ...) {
     return(model)
 }
 
+#' Function that test lars method without grouping
+#'
+#' @param X design matrix
+#' @param y target variable
+#' @param true_betas beta coefficients used in Y calculation
+#' @param groups list of integers with a length equals to number of columns in X.
+#' Indicates to which group given variable belongs to
+#'
+#' @return instance of test_result class
+#' @export
 test_lars <- function(X, y, true_betas, groups, ...) {
     start_time <- Sys.time()
     lars_model <- calc_group_lars(X, y, 1:length(groups), true_betas = true_betas, ...)
@@ -122,6 +169,16 @@ test_lars <- function(X, y, true_betas, groups, ...) {
     return(model)
 }
 
+#' Function that test group lasso method from external package
+#'
+#' @param X design matrix
+#' @param y target variable
+#' @param true_betas beta coefficients used in Y calculation
+#' @param groups list of integers with a length equals to number of columns in X.
+#' Indicates to which group given variable belongs to
+#'
+#' @return instance of test_result class
+#' @export
 test_lasso_group_library <- function(X, y, true_betas, groups) {
     start_time <- Sys.time()
     gr_cv <- cv.gglasso(
@@ -151,6 +208,17 @@ test_lasso_group_library <- function(X, y, true_betas, groups) {
     return(model)
 }
 
+
+#' Function that test group lasso method
+#'
+#' @param X design matrix
+#' @param y target variable
+#' @param true_betas beta coefficients used in Y calculation
+#' @param groups list of integers with a length equals to number of columns in X.
+#' Indicates to which group given variable belongs to
+#'
+#' @return instance of test_result class
+#' @export
 test_lasso_group <- function(X, y, true_betas, groups, ...) {
     start_time <- Sys.time()
     lars_model <- calc_group_lasso(X, y, groups, true_betas = true_betas, ...)
@@ -169,6 +237,12 @@ test_lasso_group <- function(X, y, true_betas, groups, ...) {
     return(model)
 }
 
+#' Function used to calculate unique factors
+#'
+#' @param betas values of coefficients
+#' @param betas_names names of the coefficients
+#'
+#' @return number of unique factors
 count_factors <- function(betas, betas_names){
     non_zero_betas <- betas_names[betas != 0]
     factors_names <- map(non_zero_betas, 

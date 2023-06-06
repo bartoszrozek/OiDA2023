@@ -1,11 +1,10 @@
 Package: grrrr
 Type: Package
-Title: What the package does (short line)
+Title: Set of grouped regression methods 
 Version: 1.0
 Date: 2023-06-02
-Author: Who wrote it
-Maintainer: Who to complain to <yourfault@somewhere.net>
-Description: More about what it does (maybe more than one line)
+Author: Bartosz Rozek, Jakub Szypula
+Description: This package allows user to create grouped regression models such as grouped lasso and grouped lars. User also can test them with a given framework which can be extended to handle additional methods.
 RoxygenNote: 7.2.3
 Imports: ggplot2, purrr, pracma, gglasso
 Encoding: UTF-8

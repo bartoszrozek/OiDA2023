@@ -2,11 +2,11 @@ library(MASS)
 library(purrr)
 library(pracma)
 
-#' Title
+#' Trichotomization of values in the matrix
 #'
 #' @param Z matrix
 #'
-#' @return something
+#' @return matrix with trichomizated values
 categorize_matrix <- function(Z) {
     Z[Z > qnorm(2 / 3)] <- 2
     Z[Z > qnorm(1 / 3) & Z < qnorm(2 / 3)] <- 1
@@ -14,12 +14,12 @@ categorize_matrix <- function(Z) {
     return(Z)
 }
 
-#' generate_noise function
+#' Generating noise for target variable
 #'
-#' @param Y a
-#' @param ratio b 
+#' @param Y array
+#' @param ratio signal-to-noise-ratio 
 #'
-#' @return something
+#' @return array with noise
 generate_noise <- function(Y, ratio) {
     Y_var <- var(Y)
     Y_noise <- rnorm(
@@ -63,13 +63,15 @@ basic_continous_matrix <- function(n = 100, p = 16) {
     return(X)
 }
 
-ortogonalize <- function(X, y) {
-    full_orto <- gramSchmidt(cbind(X, y))$Q
-    X <- full_orto[, -ncol(full_orto)]
-    y <- full_orto[, ncol(full_orto)]
-    return(list(X = X, y = y))
-}
-
+#' Creation of type 1 data set 
+#'
+#' @param n number of observations
+#' @param p number of variables
+#'
+#' @return list with three elements - X: design matrix, y: target variable,
+#' betas: coefficients used to create y
+#' @export
+#'
 create_model1 <- function(n = 50, p = 15) {
     cov_matrix <- matrix(
         nrow = p,
@@ -109,6 +111,15 @@ create_model1 <- function(n = 50, p = 15) {
     ))
 }
 
+#' Creation of type 2 data set 
+#'
+#' @param n number of observations
+#' @param p number of variables
+#'
+#' @return list with three elements - X: design matrix, y: target variable,
+#' betas: coefficients used to create y
+#' @export
+#'
 create_model2 <- function(n = 100, p = 4) {
     cov_matrix <- matrix(
         nrow = p,
@@ -152,6 +163,15 @@ create_model2 <- function(n = 100, p = 4) {
     ))
 }
 
+#' Creation of type 3 data set 
+#'
+#' @param n number of observations
+#' @param p number of variables
+#'
+#' @return list with three elements - X: design matrix, y: target variable,
+#' betas: coefficients used to create y
+#' @export
+#'
 create_model3 <- function(n = 100, p = 16) {
     X <- basic_continous_matrix(n = n, p = p)
     X <- columns_powers(X)
@@ -187,6 +207,16 @@ create_model3 <- function(n = 100, p = 16) {
     )
 }
 
+#' Creation of type 4 data set 
+#'
+#' @param n number of observations
+#' @param p1 number of continuous variables
+#' @param p1 number of discrete variables
+#'
+#' @return list with three elements - X: design matrix, y: target variable,
+#' betas: coefficients used to create y
+#' @export
+#'
 create_model4 <- function(n = 100, p1 = 10, p2 = 10) {
     X1 <- basic_continous_matrix(n = n, p = p1)
     X1 <- columns_powers(X1)

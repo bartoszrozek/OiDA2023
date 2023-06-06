@@ -11,12 +11,12 @@ output: html_notebook
 
 ```{r}
 
-source("classes.R")
-source("helpers.R")
-source("models.R")
-source("group_lars.R")
-source("group_lasso.R")
-source("testing.R")
+source("R/classes.R")
+source("R/helpers.R")
+source("R/models.R")
+source("R/group_lars.R")
+source("R/group_lasso.R")
+source("R/testing.R")
 
 
 ```

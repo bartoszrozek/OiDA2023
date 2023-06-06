@@ -2,18 +2,18 @@
 % Please edit documentation in R/models.R
 \name{generate_noise}
 \alias{generate_noise}
-\title{generate_noise function}
+\title{Generating noise for target variable}
 \usage{
 generate_noise(Y, ratio)
 }
 \arguments{
-\item{Y}{a}
+\item{Y}{array}
 
-\item{ratio}{b}
+\item{ratio}{signal-to-noise-ratio}
 }
 \value{
-something
+array with noise
 }
 \description{
-generate_noise function
+Generating noise for target variable
 }

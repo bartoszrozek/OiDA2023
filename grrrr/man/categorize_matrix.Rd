@@ -2,7 +2,7 @@
 % Please edit documentation in R/models.R
 \name{categorize_matrix}
 \alias{categorize_matrix}
-\title{Title}
+\title{Trichotomization of values in the matrix}
 \usage{
 categorize_matrix(Z)
 }
@@ -10,8 +10,8 @@ categorize_matrix(Z)
 \item{Z}{matrix}
 }
 \value{
-something
+matrix with trichomizated values
 }
 \description{
-Title
+Trichotomization of values in the matrix
 }

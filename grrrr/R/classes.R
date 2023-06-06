@@ -7,6 +7,25 @@ source("R/helpers.R")
 setClassUnion("numericOrNULL", c("numeric", "NULL"))
 setClassUnion("listOrNULL", c("numeric", "NULL"))
 
+#' Class storing information about group lasso model 
+#'
+#' @slot X matrix. Design matrix
+#' @slot y numeric. Target variable
+#' @slot betas numeric. Final beta coefficients 
+#' @slot betas_path list. List of all beta coefficients obtain during calculations
+#' @slot true_betas numericOrNULL. Beta coefficients used in target variable calculations
+#' @slot lambda_max numeric. Maximum value of lambda
+#' @slot lambda_best numeric. Value of lambda used for final model
+#' @slot Cp numeric. Value of Cp
+#' @slot Cp_path list. List of values of Cp obtained during calculations 
+#' @slot model_error numericOrNULL. Value of model_error for final model. Not null only if 
+#' true_betas was supplied.
+#' @slot me_path listOrNULL. List of values of model_error obtained during calculations. Not null only if 
+#' true_betas was supplied.
+#'
+#' @return instance of group_lasso class
+#' @export
+#'
 setClass(
     "group_lasso",
     representation(
@@ -19,13 +38,28 @@ setClass(
         lambda_best = "numeric",
         Cp = "numeric",
         Cp_path = "list",
-        r2 = "numeric",
-        r2_path = "list",
         model_error = "numericOrNULL",
         me_path = "listOrNULL"
     )
 )
 
+#' Class storing information about group lasso model 
+#'
+#' @slot X matrix. Design matrix
+#' @slot y numeric. Target variable
+#' @slot betas numeric. Final beta coefficients 
+#' @slot betas_path list. List of all beta coefficients obtain during calculations
+#' @slot true_betas numericOrNULL. Beta coefficients used in target variable calculations
+#' @slot Cp numeric. Value of Cp
+#' @slot Cp_path list. List of values of Cp obtained during calculations 
+#' @slot model_error numericOrNULL. Value of model_error for final model. Not null only if 
+#' true_betas was supplied.
+#' @slot me_path listOrNULL. List of values of model_error obtained during calculations. Not null only if 
+#' true_betas was supplied.
+#'
+#' @return instance of group_lars class
+#' @export
+#'
 setClass(
     "group_lars",
     representation(
@@ -42,6 +76,22 @@ setClass(
 )
 
 
+#' Class containing information from multiple tests runs
+#'
+#' @slot name character. Name of the model 
+#' @slot model_error numeric. Mean model error
+#' @slot model_error_list numeric. All model errors obtained during testing
+#' @slot model_error_std numeric. Standard deviation of model error
+#' @slot n_factors numeric. Mean number of factors
+#' @slot n_factors_list integer. All numbers of factors obtained during testing
+#' @slot n_factors_std numeric. Standard deviation of number of factors
+#' @slot cpu_time numeric. Mean CPU time
+#' @slot cpu_time_list numeric. All CPU times obtained during testing
+#' @slot cpu_time_std numeric. Standard deviation of CPU time
+#'
+#' @return instance of test_results class
+#' @export
+#'
 setClass(
     "test_results",
     representation(
@@ -58,6 +108,14 @@ setClass(
     )
 )
 
+#' Title
+#'
+#' @slot model_error numeric. Model error obtained in the test
+#' @slot n_factors numeric. Number of factors obtained in the test
+#' @slot cpu_time numeric. CPU time obtained in the test
+#'
+#' @return instance of test_result class
+#' @export
 setClass(
     "test_result",
     representation(
@@ -69,12 +127,11 @@ setClass(
 
 #' Object that stores instances of tests_results
 #'
-#' @slot tests list. 
+#' @slot tests list. List of tests_results instances
 #'
 #' @return object of class test_container
 #' @export
 #'
-#' @examples
 setClass(
     "test_container",
     representation(
@@ -82,6 +139,14 @@ setClass(
     )
 )
 
+#' Adding test_results to container
+#'
+#' @param e1 test_container. Instance of class test_container
+#' @param e2 test_results. Instance of class test_results
+#'
+#' @return instance of class test_container with added new test_results.
+#' @export
+#'
 setMethod("+", signature(e1 = "test_container", e2 = "test_results"), function(e1, e2) {
     
     tests = append(e1@tests, e2)
@@ -90,6 +155,14 @@ setMethod("+", signature(e1 = "test_container", e2 = "test_results"), function(e
 
 setGeneric("create_table", function(container) standardGeneric("create_table")) 
 
+#' Creates table with aggregated results of the tests
+#'
+#' @param container test_container. Instance of class test_container
+#'
+#' @return data frame with results of all tests. This table's shape is based on the results in the
+#' article.
+#' @export
+#'
 setMethod("create_table", signature("test_container"), function(container) {
     output_table <- data.frame()
     
@@ -113,6 +186,16 @@ setMethod("create_table", signature("test_container"), function(container) {
 
 
 setGeneric("create_boxplot", function(container, column) standardGeneric("create_boxplot")) 
+
+#' Creates boxplot for test_container.
+#'
+#' @param container test_container. Instance of test_container_class
+#' @param column character. Column which values will be presented in the boxplot. 
+#' One of the ("model_error", "n_factors", "cpu_time")
+#'
+#' @return ggplot2 object with boxplot
+#' @export
+#'
 setMethod("create_boxplot",
           signature(container = "test_container",
                     column = "character"),
@@ -147,6 +230,16 @@ setMethod("create_boxplot",
 
 
 setGeneric("get_test", function(container, name) standardGeneric("get_test")) 
+
+#' Test getter
+#'
+#' @param container test_container. Instance of test_container class 
+#' @param name character. Name of the test to be returned
+#'
+#' @return instance of class test_results from the container. If there is no test with such a name
+#' method will throw an error.
+#' @export
+#'
 setMethod("get_test",
           signature(container = "test_container",
                     name = "character"),
@@ -159,6 +252,17 @@ setMethod("get_test",
           })
 
 setGeneric("perform_ttest", function(container, tests_rows, tests_cols) standardGeneric("perform_ttest")) 
+
+#' Performs check if results of the models are statistically different
+#'
+#' @param container test_container. Instance of test_container class 
+#' @param tests_rows character. One group of tests (may be an array). Will be presented in the rows 
+#' @param tests_cols character. Second group of tests (may be an array). 
+#' Will be presented in the columns
+#'
+#' @return table with p-values of t-test.
+#' @export
+#'
 setMethod("perform_ttest",
           signature(container = "test_container",
                     tests_rows = "character",

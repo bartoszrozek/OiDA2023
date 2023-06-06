@@ -1,7 +1,20 @@
-source("R/models.R")
+# source("R/models.R")
 source("R/helpers.R")
-source("R/classes.R")
+# source("R/classes.R")
 
+#' Creates a instance of group lasso model 
+#'
+#' @param X matrix with regressors
+#' @param y target variable
+#' @param groups list of integers with a length equals to number of columns in X.
+#' Indicates to which group given variable belongs to
+#' @param result_indicator one of values ("cp", "me"). Indicates which of those two statistic 
+#' should be used to select the final model. To use "me" also true_betas needs to be supplied.
+#' @param true_betas array of true values of betas
+#'
+#' @return object of class group_lasso
+#' @export
+#'
 calc_group_lasso <- function(
     X, y, groups,
     result_indicator = "cp",
@@ -26,17 +39,14 @@ calc_group_lasso <- function(
 
     best_betas_cp <- c()
     best_betas_me <- c()
-    best_betas_r2 <- c()
     Cp_min <- Inf
     me_min <- Inf
-    r2_min <- -Inf
 
     ls <- lm(y ~ X+0)
     betas_ls <- as.numeric(ls$coefficients)
     betas <- list()
     cp_path <- list()
     me_path <- list()
-    r2_path <- list()
     i <- 0
 
     for (lambda in seq(
@@ -66,20 +76,11 @@ calc_group_lasso <- function(
             df_lasso
         )
         
-        r2_path[[i]] <- r2(y, X %*% betas[[i]])[1]
-        
-        
 
         if (cp_path[[i]] < Cp_min) {
             best_betas_cp <- betas[[i]]
             best_lambda_cp <- lambda
             Cp_min <- cp_path[[i]]
-        }
-        
-        if (r2_path[[i]] > r2_min) {
-            best_betas_r2 <- betas[[i]]
-            best_lambda_r2 <- lambda
-            r2_min <- r2_path[[i]]
         }
 
         if (!is.null(true_betas)) {
@@ -106,9 +107,7 @@ calc_group_lasso <- function(
             lambda_best = best_lambda_cp,
             Cp = Cp_min,
             Cp_path = cp_path,
-            model_error = me_min,
-            r2 = r2_min,
-            r2_path = r2_path
+            model_error = me_min
         )
     } else if (result_indicator == "me"){
         model <- new("group_lasso",
@@ -121,24 +120,7 @@ calc_group_lasso <- function(
             lambda_best = best_lambda_me,
             Cp = Cp_min,
             Cp_path = cp_path,
-            model_error = me_min,
-            r2 = r2_min,
-            r2_path = r2_path
-        )
-    } else if (result_indicator == "r2"){
-        model <- new("group_lasso",
-                     X = X,
-                     y = y,
-                     betas = best_betas_r2,
-                     betas_path = betas,
-                     true_betas = true_betas,
-                     lambda_max = max_lambda,
-                     lambda_best = best_lambda_r2,
-                     Cp = Cp_min,
-                     Cp_path = cp_path,
-                     model_error = me_min,
-                     r2 = r2_min,
-                     r2_path = r2_path
+            model_error = me_min
         )
     }
 
@@ -148,6 +130,15 @@ calc_group_lasso <- function(
 }
 
 
+#' Calculates degrees of freedom for group lasso model.
+#'
+#' @param indexes array with factors chosen in the model
+#' @param group_sizes array with sizes of consecutive groups
+#' @param betas beta coefficients in the investigated model
+#' @param betas_ls beta coefficients in the OLS model build on the same data 
+#'
+#' @return number of degrees of freedom
+#'
 df_lasso <- function(indexes, group_sizes, betas, betas_ls) {
     dg_f <- map2_dbl(
         indexes,

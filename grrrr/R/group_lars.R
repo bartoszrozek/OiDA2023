@@ -1,7 +1,17 @@
-source("R/models.R")
+# source("R/models.R")
 source("R/helpers.R")
-source("R/classes.R")
+# source("R/classes.R")
 
+#' Finds optimum for quadratic equation needed to find next factor included in the LARS algorithm. 
+#'
+#' @param X matrix with regressors
+#' @param r current residuals
+#' @param j candidate factor
+#' @param mcs current "active set"
+#' @param gamma_ current direction
+#'
+#' @return value of root which is in [0,1] interval
+#'
 find_alpha_lars <- function(X, r, j, mcs, gamma_) {
     sq_coef <- t(gamma_) %*% t(X) %*% X[, j] %*% t(X[, j]) %*% X %*% gamma_ -
         t(gamma_) %*% t(X) %*% X[, mcs] %*% t(X[, mcs]) %*% X %*% gamma_
@@ -19,6 +29,15 @@ find_alpha_lars <- function(X, r, j, mcs, gamma_) {
     return(root)
 }
 
+#' Calculates degrees of freedom for group lars model.
+#'
+#' @param indexes array with factors chosen in the model
+#' @param group_sizes array with sizes of consecutive groups
+#' @param betas beta coefficients in the investigated model
+#' @param betas_ls beta coefficients in the OLS model build on the same data 
+#'
+#' @return number of degrees of freedom
+#'
 df_lars <- function(indexes, group_sizes, betas, betas_ls) {
     dg_f <- map2_dbl(
         indexes,
@@ -32,7 +51,19 @@ df_lars <- function(indexes, group_sizes, betas, betas_ls) {
 }
 
 
-
+#' Creates a instance of group lars model 
+#'
+#' @param X matrix with regressors
+#' @param y target variable
+#' @param groups list of integers with a length equals to number of columns in X.
+#' Indicates to which group given variable belongs to
+#' @param result_indicator one of values ("cp", "me"). Indicates which of those two statistic 
+#' should be used to select the final model. To use "me" also true_betas needs to be supplied.
+#' @param true_betas array of true values of betas
+#'
+#' @return object of class group_lars
+#' @export
+#'
 calc_group_lars <- function(X, y, groups,
                             result_indicator = "cp", true_betas = NULL) {
     n <- nrow(X)
@@ -144,6 +175,13 @@ calc_group_lars <- function(X, y, groups,
 }
 
 
+#' Very simple quadratic equation solver
+#'
+#' @param a quadratic coefficient
+#' @param b linear coefficient
+#' @param c constant coefficient
+#'
+#' @return array with two roots
 quad_roots <- function(a, b, c) {
     return(c(((
         -b - sqrt(b ^ 2 - 4 * a * c)
