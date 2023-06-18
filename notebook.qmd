@@ -28,6 +28,8 @@ library(xtable)
 
 ```{r}
 
+set.seed(123)
+
 ols_name <- "OLS"
 step_name <- "Step regression"
 lars_gr_cp_name <- "Lars group Cp"
