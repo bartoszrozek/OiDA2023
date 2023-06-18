@@ -11,12 +11,13 @@ output: html_notebook
 
 ```{r}
 
-source("R/classes.R")
-source("R/helpers.R")
-source("R/models.R")
-source("R/group_lars.R")
-source("R/group_lasso.R")
-source("R/testing.R")
+# source("R/classes.R")
+# source("R/helpers.R")
+# source("R/models.R")
+# source("R/group_lars.R")
+# source("R/group_lasso.R")
+# source("R/testing.R")
+library(grrrr)
 library(gglasso)
 library(xtable)
 
@@ -45,7 +46,6 @@ n_ <- 200
 getwd()
 output_folder <- "../outputs/"
 
-
 for (model in c("1", "2", "3", "4")) {
     create_model <- eval(parse(text = paste0("create_model", model)))
 
@@ -69,9 +69,9 @@ for (model in c("1", "2", "3", "4")) {
     
     restults_tt <- perform_ttest(container, tests_rows, tests_cols)
     
-    print(xtable(results_table, type = "latex", caption = paste("Results of Model", model)), 
+    print(xtable(results_table, type = "latex", caption = paste("Results of Model", model)),
           file = paste0(output_folder, "results_", model,  ".tex"))
-    print(xtable(restults_tt, type = "latex", caption = paste("T-test for Model", model)), 
+    print(xtable(restults_tt, type = "latex", caption = paste("T-test for Model", model)),
           file = paste0(output_folder, "ttest_model", model,  ".tex"))
     ggplot2::ggsave(
       paste0(output_folder, "bp_me_model", model,  ".jpg"),
