@@ -8,4 +8,4 @@ Repository for Optimization in Data Analysis project, MiNI PW 2023
 To reproduce results:
 - install **grrrr** package with `devtools::install("grrrr")`
 - run the content of the **notebook.qmd**
-- results (tables in .tex and graphs) will be created in the outputs dictionary
+- results (tables in .tex and graphs) will be created in the **outputs** dictionary
