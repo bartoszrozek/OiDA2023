@@ -171,12 +171,12 @@ setMethod("create_table", signature("test_container"), function(container) {
     for (test in container@tests) {
         row <- data.frame(
             row.names = test@name,
-            "Model error" = test@model_error,
-            "Model error (std)" = test@model_error_std,
-            "N factors" = test@n_factors,
-            "N factors (std)" = test@n_factors_std,
-            "CPU time" = test@cpu_time,
-            "CPU time (std)" = test@cpu_time_std,
+            "ME" = test@model_error,
+            "ME (std)" = test@model_error_std,
+            "Factors" = test@n_factors,
+            "Factors (std)" = test@n_factors_std,
+            "Time" = test@cpu_time,
+            "Time (std)" = test@cpu_time_std,
             check.names = FALSE
             
         )

@@ -136,6 +136,25 @@ create_model2 <- function(n = 100, p = 4) {
     Z <- categorize_matrix(Z) |> as.data.frame()
     colnames(Z) <- paste0("Z", 1:ncol(Z))
     Z <- onehot_encoding(Z)
+    
+    cols <- colnames(Z)
+    for (idx1 in 1:length(cols)){
+        for (idx2 in idx1:length(cols)){
+            column1 <- cols[idx1]
+            column2 <- cols[idx2]
+            name1 <- substr(column1, 1, 2)
+            name2 <- substr(column2, 1, 2)
+            value1 <- substr(column1, 4, 4)
+            value2 <- substr(column2, 4, 4)
+
+            if (name1 != name2){
+                Z[paste0(name1, name2, "_", value1, "_", value2)] = Z[column1] * Z[column2]
+            }
+        }    
+    }
+    Z_new <- Z[,(p*2+1):ncol(Z)]
+    Z_new <- Z_new[,order(colnames(Z_new))]
+    Z <- cbind(Z[,1:(p*2)], Z_new)
 
     colnames_ <- colnames(Z)
     gs <- gramSchmidt(as.matrix(Z))
@@ -144,21 +163,22 @@ create_model2 <- function(n = 100, p = 4) {
 
     Y <- 3 * Z[, "Z1_1"] + 2 * Z[, "Z1_0"] +
         3 * Z[, "Z2_1"] + 2 * Z[, "Z2_0"] +
-        (Z[, "Z1_1"] & Z[, "Z2_1"]) +
-        1.5 * (Z[, "Z1_1"] & Z[, "Z2_0"]) +
-        2 * (Z[, "Z1_0"] & Z[, "Z2_1"]) +
-        2.5 * (Z[, "Z1_0"] & Z[, "Z2_0"])
+        Z[, "Z1Z2_1_1"] + 1.5 * Z[,"Z1Z2_1_0"] +
+        2 * Z[, "Z1Z2_0_1"] + 2.5 * Z[, "Z1Z2_0_0"]
+        
 
     Y_noise <- generate_noise(Y, 3)
     Y <- Y + Y_noise
     Z <- Z |> as.matrix()
 
-    betas <- c(2, 3, 2, 3)
-    betas <- c(betas, rep(0, 2 * p - length(betas)))
+    betas <- c(2, 3, 2, 3,
+               0, 0, 0, 0,
+               2.5, 2, 1.5, 1)
+    betas <- c(betas, rep(0, ncol(Z) - length(betas)))
 
     return(list(
         X = Z, Y = Y,
-        groups = rep(1:p, each = 2),
+        groups = c(rep(1:p, each = 2), rep(1:(p*(p - 1)/2), each = 4)),
         betas = betas
     ))
 }

@@ -246,7 +246,7 @@ test_lasso_group <- function(X, y, true_betas, groups, ...) {
 count_factors <- function(betas, betas_names){
     non_zero_betas <- betas_names[betas != 0]
     factors_names <- map(non_zero_betas, 
-                         \(name) substr(name, 1, nchar(name)-2)) |>
+                         \(name) strsplit(name, "_")[[1]][1]) |>
         unique()
     n_factors <- length(factors_names)
     return(n_factors)
